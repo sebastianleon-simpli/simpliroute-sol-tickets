@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de SOLs y Tickets — SimpliRoute</title>
+<link rel="stylesheet" href="https://unpkg.com/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  :root {
+    --bg:#ffffff;--bg-secondary:#f7f7f5;--bg-tertiary:#f0efe9;
+    --text:#1a1a18;--text-secondary:#6b6b66;--text-tertiary:#9e9e99;
+    --border:rgba(0,0,0,0.12);--border-med:rgba(0,0,0,0.22);
+    --blue:#185FA5;--blue-light:#E6F1FB;--blue-mid:#378ADD;--blue-border:#B5D4F4;
+    --teal:#0F6E56;--teal-light:#E1F5EE;--red:#E24B4A;
+    --slack:#4A154B;--slack-light:#F4EFF4;--slack-border:#C9A8CA;
+    --radius-md:8px;--radius-lg:12px;
+    --shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.05);
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1e1e1c;--bg-secondary:#272724;--bg-tertiary:#2e2e2b;
+      --text:#e8e8e2;--text-secondary:#9e9e99;--text-tertiary:#6b6b66;
+      --border:rgba(255,255,255,0.1);--border-med:rgba(255,255,255,0.18);
+      --blue-light:#0c2a45;--blue-border:#1a4a7a;--teal-light:#062e24;
+      --slack-light:#1e0f1f;--slack-border:#6b3a6d;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg-tertiary);color:var(--text);min-height:100vh}
+
+  /* NAV */
+  .topbar{background:#0a1628;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;z-index:100}
+  .topbar img{height:28px}
+  .nav-tabs{display:flex;gap:4px;height:100%;align-items:flex-end}
+  .nav-tab{background:none;border:none;border-radius:var(--radius-md) var(--radius-md) 0 0;padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:7px;transition:all .15s;height:44px;font-family:inherit;border-bottom:2px solid transparent}
+  .nav-tab:hover{color:rgba(255,255,255,0.85)}
+  .nav-tab.active{color:#fff;border-bottom:2px solid #378ADD;background:rgba(55,138,221,0.1)}
+  .nav-tab i{font-size:16px}
+
+  /* PAGES */
+  .page{display:none;padding:2rem 1rem}
+  .page.active{display:block}
+  .wrapper{max-width:680px;margin:0 auto}
+
+  /* CARDS */
+  .card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+  .section-label{font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem}
+
+  /* TYPE BUTTONS */
+  .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .type-btn{background:var(--bg-secondary);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:1rem;cursor:pointer;text-align:left;transition:all .15s;color:var(--text)}
+  .type-btn:hover{border-color:var(--border-med);background:var(--bg)}
+  .type-btn.selected{border:1.5px solid var(--blue-mid);background:var(--blue-light);color:var(--blue)}
+  .type-btn.slack-btn.selected{border:1.5px solid var(--slack);background:var(--slack-light);color:var(--slack)}
+  .type-btn .icon{font-size:24px;margin-bottom:6px;display:block;line-height:1}
+  .type-btn .label{font-size:14px;font-weight:500;display:block}
+  .type-btn .desc{font-size:12px;color:var(--text-secondary);margin-top:2px;display:block}
+  .type-btn.selected .desc{color:var(--blue-mid)}
+  .type-btn.slack-btn.selected .desc{color:var(--slack)}
+
+  /* SUB BUTTONS */
+  .sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .sub-btn{background:var(--bg-secondary);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:.75rem .5rem;cursor:pointer;text-align:center;font-size:13px;color:var(--text);transition:all .15s;line-height:1.4}
+  .sub-btn:hover{border-color:var(--border-med)}
+  .sub-btn.selected{border:1.5px solid var(--blue-mid);background:var(--blue-light);color:var(--blue);font-weight:500}
+  .sub-btn i{font-size:22px;display:block;margin-bottom:5px;line-height:1}
+
+  /* SLACK BADGE */
+  .slack-badge{display:inline-flex;align-items:center;gap:6px;background:var(--slack-light);color:var(--slack);border:0.5px solid var(--slack-border);border-radius:var(--radius-md);padding:6px 12px;font-size:13px;font-weight:500;margin-bottom:1rem}
+  .slack-badge i{font-size:16px}
+
+  /* FIELDS */
+  .field-group{margin-top:1rem}
+  .field-group label{font-size:13px;color:var(--text-secondary);display:block;margin-bottom:5px}
+  .field-group label .req{color:var(--red)}
+  textarea,input[type=text],select{width:100%;font-size:14px;color:var(--text);background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;font-family:inherit;resize:vertical;transition:border-color .15s;-webkit-appearance:none}
+  textarea{min-height:80px}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239e9e99' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  textarea:focus,input:focus,select:focus{outline:none;border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(55,138,221,0.12)}
+  .hint{font-size:11px;color:var(--text-tertiary);margin-top:4px}
+  .form-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+
+  /* CHECKBOXES */
+  .checkbox-group{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .checkbox-item{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 0}
+  .checkbox-item input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
+
+  /* BUTTONS */
+  .btn-primary{background:var(--blue);color:#fff;border:none;border-radius:var(--radius-md);padding:11px 20px;font-size:14px;font-weight:500;cursor:pointer;width:100%;margin-top:1.25rem;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}
+  .btn-primary:hover{background:#0C447C}
+  .back-btn{background:none;border:none;font-size:13px;color:var(--text-secondary);cursor:pointer;padding:0;margin-bottom:1rem;display:flex;align-items:center;gap:5px;transition:color .15s;font-family:inherit}
+  .back-btn:hover{color:var(--text)}
+  .copy-btn,.new-btn{background:var(--bg);border:0.5px solid var(--border-med);border-radius:var(--radius-md);padding:7px 14px;font-size:13px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:6px;transition:all .15s;font-family:inherit}
+  .copy-btn:hover,.new-btn:hover{background:var(--bg-secondary)}
+  .copy-btn.success{background:var(--teal-light);color:var(--teal);border-color:transparent}
+
+  /* PILLS */
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;margin-bottom:1rem;letter-spacing:.03em}
+  .pill.sol{background:var(--teal-light);color:var(--teal)}
+  .pill.ticket{background:var(--blue-light);color:var(--blue)}
+  .pill.slack{background:var(--slack-light);color:var(--slack)}
+
+  /* CHAT */
+  .msg{padding:.85rem 1rem;border-radius:var(--radius-md);font-size:14px;line-height:1.65;margin-bottom:.85rem}
+  .msg.ai{background:var(--bg-secondary);border:0.5px solid var(--border)}
+  .msg.user{background:var(--blue-light);color:var(--blue);border:0.5px solid var(--blue-border);text-align:right}
+  .msg-label{font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px}
+  .output-box{background:var(--bg-tertiary);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:1rem;font-size:13px;line-height:1.75;color:var(--text);white-space:pre-wrap;font-family:'SF Mono','Fira Code',monospace;max-height:420px;overflow-y:auto}
+  .slack-hint{background:var(--slack-light);border:0.5px solid var(--slack-border);border-radius:var(--radius-md);padding:.75rem 1rem;font-size:13px;color:var(--slack);margin-top:.75rem;display:flex;align-items:flex-start;gap:8px;line-height:1.55}
+  .slack-hint i{flex-shrink:0;margin-top:1px;font-size:15px}
+  .action-row{display:flex;gap:8px;margin-top:.75rem;flex-wrap:wrap}
+  .review-question{font-size:14px;color:var(--text-secondary);margin-top:.85rem;padding-top:.85rem;border-top:0.5px solid var(--border)}
+  .input-row{display:flex;gap:8px;margin-top:.85rem}
+  .input-row textarea{flex:1;min-height:46px;max-height:120px;resize:none}
+  .send-btn{background:var(--blue);color:#fff;border:none;border-radius:var(--radius-md);padding:0 16px;cursor:pointer;font-size:18px;align-self:flex-end;height:46px;min-width:46px;transition:background .15s}
+  .send-btn:hover{background:#0C447C}
+  .send-btn:disabled{background:var(--bg-secondary);color:var(--text-tertiary);cursor:not-allowed}
+  .typing{display:flex;gap:5px;align-items:center;padding:.85rem 1rem;background:var(--bg-secondary);border:0.5px solid var(--border);border-radius:var(--radius-md);margin-bottom:.85rem}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--text-tertiary);animation:bounce .9s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-7px)}}
+  .step{display:none}
+  .step.active{display:block}
+
+  /* CRITERIA */
+  .criteria-section{margin-bottom:1.5rem}
+  .criteria-section h2{font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:0.5px solid var(--border)}
+  .criteria-type{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);margin-bottom:.75rem;overflow:hidden;box-shadow:var(--shadow)}
+  .criteria-header{display:flex;align-items:center;gap:10px;padding:1rem 1.25rem;cursor:pointer;user-select:none;transition:background .12s}
+  .criteria-header:hover{background:var(--bg-secondary)}
+  .criteria-icon{font-size:18px;color:var(--blue-mid);flex-shrink:0}
+  .criteria-icon.slack{color:var(--slack)}
+  .criteria-title{font-size:14px;font-weight:500;flex:1}
+  .criteria-badge{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
+  .badge-sol{background:var(--teal-light);color:var(--teal)}
+  .badge-ticket{background:var(--blue-light);color:var(--blue)}
+  .badge-slack{background:var(--slack-light);color:var(--slack)}
+  .criteria-chevron{font-size:16px;color:var(--text-tertiary);transition:transform .2s}
+  .criteria-body{display:none;padding:0 1.25rem 1.25rem}
+  .criteria-body.open{display:block}
+  .criteria-chevron.open{transform:rotate(180deg)}
+  .criteria-field-list{list-style:none}
+  .criteria-field-list li{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:13px;color:var(--text);border-bottom:0.5px solid var(--border);line-height:1.5}
+  .criteria-field-list li:last-child{border-bottom:none}
+  .criteria-field-list li .field-name{font-weight:500;min-width:160px;color:var(--text)}
+  .criteria-field-list li .field-note{color:var(--text-secondary);flex:1}
+  .req-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px}
+  .opt-dot{width:6px;height:6px;border-radius:50%;background:var(--text-tertiary);flex-shrink:0;margin-top:5px}
+  .criteria-note{background:var(--bg-secondary);border-left:3px solid var(--blue-mid);border-radius:0 var(--radius-md) var(--radius-md) 0;padding:.75rem 1rem;font-size:13px;color:var(--text-secondary);margin-top:.85rem;line-height:1.6}
+  .criteria-note strong{color:var(--text)}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--text-secondary);margin-bottom:1rem;align-items:center}
+  .legend span{display:flex;align-items:center;gap:5px}
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <img src="data:image/png;base64,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" alt="SimpliRoute"/>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchPage('generator',this)"><i class="ti ti-sparkles"></i> Generador</button>
+    <button class="nav-tab" onclick="switchPage('criteria',this)"><i class="ti ti-list-check"></i> Criterios de redacción</button>
+  </div>
+</nav>
+
+<!-- GENERATOR -->
+<div id="page-generator" class="page active">
+<div class="wrapper">
+
+  <!-- PASO 1: SOL o TICKET -->
+  <div id="step-type" class="step active">
+    <div class="card">
+      <div class="section-label">¿Qué quieres crear?</div>
+      <div class="type-grid">
+        <button class="type-btn" onclick="selectDocType('sol',this)">
+          <i class="ti ti-bulb icon"></i><span class="label">SOL</span><span class="desc">Solicitud de Tecnología</span>
+        </button>
+        <button class="type-btn" onclick="selectDocType('ticket',this)">
+          <i class="ti ti-ticket icon"></i><span class="label">Ticket de Soporte</span><span class="desc">Reporte a equipo interno</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 2: DESTINO -->
+  <div id="step-dest" class="step">
+    <button class="back-btn" onclick="goBack('type')"><i class="ti ti-arrow-left"></i> Volver</button>
+    <div class="card">
+      <div class="section-label" id="dest-label">¿Dónde quieres enviarlo?</div>
+      <div class="type-grid">
+        <button class="type-btn" onclick="selectDest('salesforce',this)">
+          <i class="ti ti-database icon"></i><span class="label">Salesforce</span><span class="desc">Registro formal en el sistema</span>
+        </button>
+        <button class="type-btn slack-btn" onclick="selectDest('slack',this)" id="slack-dest-btn">
+          <i class="ti ti-brand-slack icon"></i><span class="label" id="slack-dest-label">#hola-producto</span><span class="desc" id="slack-dest-desc">Solicitud al canal de Producto</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 3: SUBTIPO (solo Salesforce) -->
+  <div id="step-subtype" class="step">
+    <button class="back-btn" onclick="goBack('dest')"><i class="ti ti-arrow-left"></i> Volver</button>
+    <div class="card">
+      <div class="section-label" id="subtype-label">Tipo de SOL</div>
+      <div class="sub-grid" id="subtype-grid"></div>
+    </div>
+  </div>
+
+  <!-- PASO 4: FORMULARIO -->
+  <div id="step-form" class="step">
+    <button class="back-btn" onclick="goBack('subtype')"><i class="ti ti-arrow-left"></i> Volver</button>
+    <div class="card" id="form-card"></div>
+    <button class="btn-primary" onclick="startGenerate()"><i class="ti ti-sparkles"></i> Generar borrador</button>
+  </div>
+
+  <!-- PASO 5: BORRADOR -->
+  <div id="step-chat" class="step">
+    <button class="back-btn" onclick="goBack('form')"><i class="ti ti-arrow-left"></i> Ajustar datos</button>
+    <div class="card">
+      <div id="chat-messages"></div>
+      <div class="input-row" id="chat-input-area" style="display:none">
+        <textarea id="chat-input" placeholder="Escribe tu ajuste... (Enter para enviar)" rows="2" onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendChat()"><i class="ti ti-send"></i></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- CRITERIA -->
+<div id="page-criteria" class="page">
+<div class="wrapper">
+  <div class="card">
+    <div class="section-label">Criterios generales de redacción</div>
+    <div class="legend"><span><span class="req-dot"></span> Campo obligatorio</span><span><span class="opt-dot"></span> Campo opcional</span></div>
+    <div class="criteria-note">
+      <strong>Tono y formato:</strong> Primera persona, formal y ejecutivo ("Se solicita...", "Se reporta..."). Texto plano listo para pegar en Salesforce o Slack. Términos técnicos en inglés (endpoint, payload, token, webhook).<br><br>
+      <strong>Destino:</strong> Para cada SOL y Ticket se pregunta si va a Salesforce o al canal de Slack correspondiente. El formato del borrador se adapta según el destino.<br><br>
+      <strong>Enfoque de las SOLs:</strong> Describir el problema o necesidad; el equipo de producto determina la solución. Se puede incluir sugerencia como referencia.<br><br>
+      <strong>Urgencia:</strong> Si el usuario menciona impacto o urgencia, se incorpora en el cuerpo del documento.<br><br>
+      <strong>Revisión:</strong> Siempre se pregunta si hay ajustes antes de entregar el borrador final.
+    </div>
+  </div>
+
+  <div class="criteria-section">
+    <h2>SOLs — Salesforce</h2>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-layout-dashboard criteria-icon"></i><span class="criteria-title">Prototipo</span><span class="criteria-badge badge-sol">SOL</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Nombre del requerimiento</span><span class="field-note">Título breve y descriptivo del prototipo</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Descripción</span><span class="field-note">Qué debe hacer el prototipo y qué problema resuelve</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">URL de referencia</span><span class="field-note">Link al Retool o Active Pieces existente si es una mejora</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Cuentas involucradas</span><span class="field-note">Nombre e ID SimpliRoute de cada cuenta relacionada</span></li>
+      </ul></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-code criteria-icon"></i><span class="criteria-title">Desarrollo</span><span class="criteria-badge badge-sol">SOL</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Nombre del requerimiento</span><span class="field-note">Título breve del desarrollo</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Dolor</span><span class="field-note">Problema concreto hoy y la fricción que genera</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Contexto adicional</span><span class="field-note">Flujo actual, workarounds, frecuencia, entorno afectado</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Necesidad</span><span class="field-note">Qué debe hacer o permitir el sistema</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Alcance</span><span class="field-note">Cliente específico o mejora transversal de plataforma</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">SOL o Tech-Req relacionada</span><span class="field-note">Número de referencia anterior si existe</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Sugerencia de resolución</span><span class="field-note">Idea del usuario — el equipo decide la solución final</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Flujo esperado</span><span class="field-note">Descripción paso a paso del flujo deseado como referencia</span></li>
+      </ul><div class="criteria-note">Foco en el problema, no en la solución. El alcance (cliente vs. transversal) ayuda en la priorización.</div></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-settings-automation criteria-icon"></i><span class="criteria-title">Macro</span><span class="criteria-badge badge-sol">SOL</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Nombre + Descripción</span><span class="field-note">Nombre de la macro y descripción completa con contexto y objetivo</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Dirección / ID referencia</span><span class="field-note">Address y reference ID si aplican</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Georreferencia</span><span class="field-note">Latitud y longitud</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Habilidades / Carga / Prioridad</span><span class="field-note">Skills requeridos, tipo de carga y nivel de prioridad</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Tiempo / Contacto / Ventana</span><span class="field-note">Load time, contacto y time window</span></li>
+      </ul></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-chart-bar criteria-icon"></i><span class="criteria-title">Reporte</span><span class="criteria-badge badge-sol">SOL</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Nombre + Descripción</span><span class="field-note">Nombre del reporte y qué información debe contener</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Distribución por email</span><span class="field-note">Correo, hora y frecuencia de envío</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Licencia Tableau</span><span class="field-note">Si tiene o le interesa licencia para plataforma</span></li>
+      </ul></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-tool criteria-icon"></i><span class="criteria-title">Soporte Prototipado</span><span class="criteria-badge badge-sol">SOL</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Nombre del requerimiento</span><span class="field-note">Título breve del problema reportado</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Herramienta con problemas</span><span class="field-note">Nombre, tipo (Retool / Active Pieces / combinación) y URL</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Descripción del problema</span><span class="field-note">Descripción completa de la falla</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Resultado esperado / obtenido</span><span class="field-note">Cómo debería funcionar vs. qué ocurre actualmente</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Paso a paso</span><span class="field-note">Pasos para reproducir el problema</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="criteria-section">
+    <h2>SOLs — Slack #hola-producto</h2>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-brand-slack criteria-icon slack"></i><span class="criteria-title">Solicitud a Producto</span><span class="criteria-badge badge-slack">#hola-producto</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Título del pedido/consulta</span><span class="field-note">Título breve y descriptivo del requerimiento o consulta</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Contexto</span><span class="field-note">¿En qué flujo, pantalla o momento ocurre el problema?</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Cliente</span><span class="field-note">Nombre de la empresa o cuenta relacionada</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Criticidad estimada</span><span class="field-note">Alta / Media / Baja</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Módulo(s) involucrados</span><span class="field-note">App / Route Designer / Tracking / Vehículos / Reportería / Módulo de clientes/Visitas / Forcefield / TMS / Otro / Proto</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">SOL asociada</span><span class="field-note">Solo si es una solicitud sobre una SOL ya existente — dejar vacío para requerimientos nuevos</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Quién consulta</span><span class="field-note">Nombre del usuario que realiza la consulta</span></li>
+      </ul><div class="criteria-note">El borrador se formatea campo por campo para copiar directamente en el workflow ⚡ del canal.</div></div>
+    </div>
+  </div>
+
+  <div class="criteria-section">
+    <h2>Tickets — Salesforce</h2>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-alert-circle criteria-icon"></i><span class="criteria-title">Problema o error</span><span class="criteria-badge badge-ticket">Ticket</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Asunto</span><span class="field-note">Título breve del problema</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Módulo relacionado</span><span class="field-note">Ruteo / Seguimiento / Reportes / Ajustes / Integración / Clientes / Visitas / App Móvil / Live Tracking / ForceField / Gestión Documental</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Resultado obtenido / deseado</span><span class="field-note">Comportamiento actual vs. comportamiento esperado</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Paso a paso</span><span class="field-note">Pasos para reproducir el error</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Entorno / ID afectado</span><span class="field-note">Producción, Staging o Demo — ID de plan, ruta o visita</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Evidencia</span><span class="field-note">Capturas, videos, logs disponibles</span></li>
+      </ul><div class="criteria-note">El campo <strong>Tipo</strong> en Salesforce siempre se llena como "Problema".</div></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-file-text criteria-icon"></i><span class="criteria-title">Solicitud / Middleware / TI</span><span class="criteria-badge badge-ticket">Ticket</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Asunto + Tipo</span><span class="field-note">Título breve y tipo: General / Bloqueo de Zonas / OSRM</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Número y nombre de zonas</span><span class="field-note">Si aplica según el tipo seleccionado</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Observaciones</span><span class="field-note">Descripción completa de la solicitud y contexto</span></li>
+      </ul><div class="criteria-note"><strong>Aprobado por</strong> y <strong>Estado de la cuenta</strong> los llena otro rol — no se incluyen en el borrador.</div></div>
+    </div>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-checkbox criteria-icon"></i><span class="criteria-title">Tarea</span><span class="criteria-badge badge-ticket">Ticket</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Asunto + Tipo</span><span class="field-note">Copiar zonas / Crear DNS / Token GPS / Desbloqueo usuarios o imágenes / Reportes / Webhooks</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Descripción</span><span class="field-note">Contexto y detalle de lo que se necesita ejecutar</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">ID cuenta origen / destino</span><span class="field-note">IDs de las cuentas cuando aplique</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Nombre proveedor GPS</span><span class="field-note">Para tareas de integración o token GPS</span></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="criteria-section">
+    <h2>Tickets — Slack #soporte-interno</h2>
+    <div class="criteria-type">
+      <div class="criteria-header" onclick="toggleCriteria(this)"><i class="ti ti-brand-slack criteria-icon slack"></i><span class="criteria-title">Caso Salesforce rápido</span><span class="criteria-badge badge-slack">#soporte-interno</span><i class="ti ti-chevron-down criteria-chevron"></i></div>
+      <div class="criteria-body"><ul class="criteria-field-list">
+        <li><span class="req-dot"></span><span class="field-name">Asunto</span><span class="field-note">Título breve del ticket</span></li>
+        <li><span class="req-dot"></span><span class="field-name">ID de cuenta</span><span class="field-note">ID de la cuenta SimpliRoute a reportar</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Usuario</span><span class="field-note">Usuario de la cuenta para reproducir el problema</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Contraseña</span><span class="field-note">Campo sensible — el usuario decide si incluirla o no</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Resultado obtenido / deseado</span><span class="field-note">Qué ocurre actualmente vs. qué debería ocurrir</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Paso a paso</span><span class="field-note">Cómo soporte puede replicar el problema</span></li>
+        <li><span class="req-dot"></span><span class="field-name">Fecha de incidencia</span><span class="field-note">Fecha en que ocurrió el problema</span></li>
+        <li><span class="opt-dot"></span><span class="field-name">Archivos adjuntos</span><span class="field-note">Se adjuntan manualmente en el formulario del canal</span></li>
+      </ul><div class="criteria-note">El borrador se formatea campo por campo para copiar en el workflow ⚡ del canal #soporte-interno.</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ── DATA ──
+const SOL_SUBTYPES=[
+  {id:'prototipo',label:'Prototipo',icon:'ti-layout-dashboard'},
+  {id:'desarrollo',label:'Desarrollo',icon:'ti-code'},
+  {id:'macro',label:'Macro',icon:'ti-settings-automation'},
+  {id:'reporte',label:'Reporte',icon:'ti-chart-bar'},
+  {id:'soporte_prototipado',label:'Soporte Prototipado',icon:'ti-tool'},
+];
+const TICKET_SUBTYPES=[
+  {id:'problema',label:'Problema o error',icon:'ti-alert-circle'},
+  {id:'solicitud',label:'Solicitud / Middleware / TI',icon:'ti-file-text'},
+  {id:'tarea',label:'Tarea',icon:'ti-checkbox'},
+];
+
+const MODULOS_HP=['App','Route Designer','Tracking','Vehículos','Reportería','Módulo de clientes/Visitas','Forcefield','TMS','Otro','Proto'];
+
+const SOL_FORMS={
+  prototipo:[
+    {id:'nombre',label:'Nombre del requerimiento',type:'text',req:true,hint:'Título breve y descriptivo'},
+    {id:'descripcion',label:'Descripción',type:'textarea',req:true,hint:'¿Qué debe hacer el prototipo? ¿Qué problema resuelve?'},
+    {id:'es_mejora',label:'¿Es una mejora sobre un prototipo o automatización existente?',type:'select',opts:['No','Sí — Retool','Sí — Active Pieces','Sí — Combinación Retool + Active Pieces']},
+    {id:'url_ref',label:'URL de referencia (si es mejora)',type:'text',hint:'Link del Retool o automatización existente'},
+    {id:'cuentas',label:'Cuentas SimpliRoute involucradas',type:'textarea',hint:'Nombre de cuenta — ID: XXXXX (una por línea)'},
+  ],
+  desarrollo:[
+    {id:'nombre',label:'Nombre del requerimiento',type:'text',req:true},
+    {id:'dolor',label:'Dolor',type:'textarea',req:true,hint:'¿Cuál es el problema concreto hoy? ¿Qué fricción genera?'},
+    {id:'contexto',label:'Contexto adicional',type:'textarea',hint:'Flujo actual, workarounds, frecuencia, entorno afectado'},
+    {id:'necesidad',label:'Necesidad',type:'textarea',req:true,hint:'¿Qué debe hacer o permitir el sistema?'},
+    {id:'alcance',label:'Alcance',type:'select',opts:['Mejora transversal de plataforma','Cliente específico']},
+    {id:'cliente',label:'Cliente y ID de cuenta (si aplica)',type:'text',hint:'Nombre — ID: XXXXX'},
+    {id:'sol_anterior',label:'SOL o Tech-Req relacionada (opcional)',type:'text',hint:'Ej: SOL-6454, Tech-Req-3591'},
+    {id:'sugerencia',label:'Sugerencia de resolución (opcional)',type:'textarea',hint:'Si tienes una idea de cómo resolverlo'},
+    {id:'flujo',label:'Flujo esperado como referencia (opcional)',type:'textarea',hint:'Descripción paso a paso del flujo deseado'},
+  ],
+  macro:[
+    {id:'nombre',label:'Nombre de la macro',type:'text',req:true},
+    {id:'descripcion',label:'Descripción del pedido',type:'textarea',req:true,hint:'Descripción completa con contexto y objetivo'},
+    {id:'direccion',label:'Dirección (address)',type:'text'},
+    {id:'id_ref',label:'ID de referencia (reference ID)',type:'text'},
+    {id:'lat',label:'Latitud',type:'text',col:'left'},
+    {id:'lon',label:'Longitud',type:'text',col:'right'},
+    {id:'habilidades',label:'Habilidades requeridas u opcionales',type:'text'},
+    {id:'carga',label:'Carga',type:'select',opts:['—','Carta 1','Carta 2','Carta 3','Carga Pick']},
+    {id:'prioridad',label:'Prioridad',type:'text'},
+    {id:'tiempo_carga',label:'Tiempo de carga (load time)',type:'text'},
+    {id:'contacto',label:'Contacto',type:'text'},
+    {id:'ventana',label:'Ventana horaria (time window)',type:'text'},
+    {id:'peticiones',label:'Peticiones adicionales',type:'textarea'},
+  ],
+  reporte:[
+    {id:'nombre',label:'Nombre del reporte',type:'text',req:true},
+    {id:'descripcion',label:'Descripción del pedido',type:'textarea',req:true,hint:'¿Qué información debe contener? ¿Cuál es su objetivo?'},
+    {id:'correo',label:'Correo electrónico destinatario',type:'text'},
+    {id:'hora_envio',label:'Hora de envío',type:'text',hint:'Ej: 08:00'},
+    {id:'frecuencia',label:'Frecuencia de envío',type:'text',hint:'Ej: Diario, semanal, lunes y viernes'},
+    {id:'tableau',label:'¿Tiene licencia de Tableau?',type:'select',opts:['—','Sí','No','No aplica']},
+    {id:'tableau_interesa',label:'¿Le interesa tener licencia de Tableau?',type:'select',opts:['—','Sí','No','No aplica']},
+  ],
+  soporte_prototipado:[
+    {id:'nombre',label:'Nombre del requerimiento',type:'text',req:true},
+    {id:'herramienta_tipo',label:'Tipo de herramienta con problemas',type:'select',opts:['Retool','Active Pieces','Combinación Retool + Active Pieces']},
+    {id:'herramienta_nombre',label:'Nombre de la herramienta o automatización',type:'text',req:true},
+    {id:'herramienta_url',label:'Link / URL',type:'text',hint:'Link directo al Retool o automatización'},
+    {id:'descripcion',label:'Descripción del problema',type:'textarea',req:true},
+    {id:'resultado_esperado',label:'Resultado esperado',type:'textarea',req:true,hint:'¿Cómo debería funcionar correctamente?'},
+    {id:'resultado_obtenido',label:'Resultado obtenido',type:'textarea',req:true,hint:'¿Qué está ocurriendo actualmente?'},
+    {id:'pasos',label:'Paso a paso para reproducir',type:'textarea',req:true},
+  ],
+  // Slack #hola-producto
+  hola_producto:[
+    {id:'titulo',label:'Título del pedido/consulta',type:'text',req:true,hint:'Título breve y descriptivo'},
+    {id:'contexto',label:'Contexto',type:'textarea',req:true,hint:'¿En qué flujo, pantalla o momento ocurre?'},
+    {id:'cliente',label:'Cliente',type:'text',req:true,hint:'Nombre de la empresa o cuenta'},
+    {id:'criticidad',label:'Criticidad estimada',type:'select',req:true,opts:['—','Alta','Media','Baja']},
+    {id:'modulos',label:'Módulo(s) involucrados',type:'checkboxes',req:true,opts:['App','Route Designer','Tracking','Vehículos','Reportería','Módulo de clientes/Visitas','Forcefield','TMS','Otro','Proto']},
+    {id:'sol_asociada',label:'¿Existe SOL asociada? ¿Cuál? (solo si es sobre una SOL existente)',type:'text',hint:'Ej: SOL-6454 — dejar vacío si es requerimiento nuevo'},
+    {id:'quien_consulta',label:'¿Quién consulta?',type:'text',req:true,hint:'Tu nombre completo'},
+  ],
+};
+
+const TICKET_FORMS={
+  problema:[
+    {id:'asunto',label:'Asunto',type:'text',req:true,hint:'Título breve y descriptivo del problema'},
+    {id:'modulo',label:'Módulo relacionado',type:'select',req:true,opts:['—','Módulo de ruteo','Módulo de seguimiento','Reportes','Ajustes/Configuración','Integración','Módulo de Clientes','Módulo de visitas','App Móvil','Live Tracking','ForceField','Gestión Documental']},
+    {id:'resultado_obtenido',label:'Resultado obtenido',type:'textarea',req:true,hint:'¿Qué está ocurriendo?'},
+    {id:'resultado_deseado',label:'Resultado deseado',type:'textarea',req:true,hint:'¿Qué debería ocurrir?'},
+    {id:'pasos',label:'Paso a paso para reproducir',type:'textarea',req:true},
+    {id:'entorno',label:'Entorno (opcional)',type:'select',opts:['—','Producción','Staging','Demo']},
+    {id:'id_afectado',label:'ID afectado (opcional)',type:'text',hint:'ID de plan, ruta o visita afectada'},
+    {id:'evidencia',label:'Evidencia disponible',type:'textarea',hint:'Capturas, videos, logs — indicar qué se adjuntará'},
+  ],
+  solicitud:[
+    {id:'asunto',label:'Asunto',type:'text',req:true},
+    {id:'tipo',label:'Tipo',type:'select',req:true,opts:['—','General','Bloqueo de Zonas','OSRM']},
+    {id:'num_zonas',label:'Número de zonas (si aplica)',type:'text'},
+    {id:'nombre_zonas',label:'Nombre de las zonas en SimpliRoute (si aplica)',type:'textarea'},
+    {id:'observaciones',label:'Observaciones',type:'textarea',req:true,hint:'Descripción completa de la solicitud y contexto'},
+  ],
+  tarea:[
+    {id:'asunto',label:'Asunto',type:'text',req:true},
+    {id:'tipo',label:'Tipo de tarea',type:'select',req:true,opts:['—','Copiar zonas entre cuentas','Crear DNS para integraciones','Creación de token GPS','Desbloqueo de usuarios','Desbloqueo de imágenes','Reportes','Creación de Webhooks']},
+    {id:'descripcion',label:'Descripción',type:'textarea',req:true,hint:'Contexto y detalle de lo que se necesita hacer'},
+    {id:'id_origen',label:'ID cuenta origen (si aplica)',type:'text'},
+    {id:'id_destino',label:'ID cuenta destino (si aplica)',type:'text'},
+    {id:'proveedor_gps',label:'Nombre del proveedor GPS (si aplica)',type:'text'},
+  ],
+  // Slack #soporte-interno
+  soporte_interno:[
+    {id:'asunto',label:'Asunto',type:'text',req:true,hint:'Título breve del ticket'},
+    {id:'id_cuenta',label:'ID de cuenta',type:'text',req:true,hint:'ID de la cuenta SimpliRoute a reportar'},
+    {id:'usuario',label:'Usuario (opcional)',type:'text',hint:'Usuario de la cuenta en SimpliRoute'},
+    {id:'password',label:'Contraseña (opcional)',type:'text',hint:'Puedes omitirla si prefieres no incluirla en el borrador'},
+    {id:'resultado_obtenido',label:'Resultado obtenido',type:'textarea',req:true,hint:'¿Qué está ocurriendo actualmente?'},
+    {id:'resultado_deseado',label:'Resultado deseado',type:'textarea',req:true,hint:'¿Qué debería ocurrir?'},
+    {id:'pasos',label:'Paso a paso',type:'textarea',req:true,hint:'Cómo puede soporte replicar el problema'},
+    {id:'fecha_incidencia',label:'Fecha de incidencia',type:'text',req:true,hint:'Ej: 25/05/2026'},
+    {id:'evidencia',label:'Archivos adjuntos / evidencia',type:'textarea',hint:'Indicar qué evidencia adjuntarás manualmente en el formulario'},
+  ],
+};
+
+// ── STATE ──
+let docType='',dest='',subType='',formData={},messages=[],generating=false;
+
+// ── NAV ──
+function switchPage(page,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  btn.classList.add('active');
+}
+function toggleCriteria(header){
+  const body=header.nextElementSibling,chevron=header.querySelector('.criteria-chevron');
+  const open=body.classList.contains('open');
+  body.classList.toggle('open',!open);chevron.classList.toggle('open',!open);
+}
+function showStep(id){
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── FLOW ──
+function selectDocType(type,btn){
+  docType=type;
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  // Update slack dest labels
+  if(type==='sol'){
+    document.getElementById('slack-dest-label').textContent='#hola-producto';
+    document.getElementById('slack-dest-desc').textContent='Solicitud al canal de Producto';
+  } else {
+    document.getElementById('slack-dest-label').textContent='#soporte-interno';
+    document.getElementById('slack-dest-desc').textContent='Ticket rápido por Slack';
+  }
+  document.getElementById('dest-label').textContent=type==='sol'?'¿Dónde quieres enviar esta SOL?':'¿Dónde quieres enviar este ticket?';
+  setTimeout(()=>{showStep('step-dest');},180);
+}
+
+function selectDest(d,btn){
+  dest=d;
+  document.querySelectorAll('#step-dest .type-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  setTimeout(()=>{
+    if(d==='slack'){
+      // Slack: subType is fixed
+      subType=docType==='sol'?'hola_producto':'soporte_interno';
+      buildForm();showStep('step-form');
+    } else {
+      buildSubtype();showStep('step-subtype');
+    }
+  },180);
+}
+
+function buildSubtype(){
+  const items=docType==='sol'?SOL_SUBTYPES:TICKET_SUBTYPES;
+  document.getElementById('subtype-label').textContent=docType==='sol'?'Tipo de SOL':'Tipo de ticket';
+  const grid=document.getElementById('subtype-grid');grid.innerHTML='';
+  items.forEach(it=>{
+    const b=document.createElement('button');b.className='sub-btn';
+    b.innerHTML=`<i class="ti ${it.icon}"></i>${it.label}`;
+    b.onclick=()=>{document.querySelectorAll('.sub-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');subType=it.id;setTimeout(()=>{buildForm();showStep('step-form');},180);};
+    grid.appendChild(b);
+  });
+}
+
+function buildForm(){
+  const fields=docType==='sol'?SOL_FORMS[subType]:TICKET_FORMS[subType];
+  const card=document.getElementById('form-card');
+  const isSlack=dest==='slack';
+  const names={prototipo:'Prototipo',desarrollo:'Desarrollo',macro:'Macro',reporte:'Reporte',soporte_prototipado:'Soporte Prototipado',problema:'Problema o error',solicitud:'Solicitud / Middleware / TI',tarea:'Tarea',hola_producto:'#hola-producto',soporte_interno:'#soporte-interno'};
+  const pillClass=isSlack?'slack':(docType==='sol'?'sol':'ticket');
+  card.innerHTML=`<span class="pill ${pillClass}">${isSlack?'Slack':'('+docType.toUpperCase()+')'} — ${names[subType]}</span>`;
+  if(isSlack){
+    const badge=document.createElement('div');
+    badge.className='slack-badge';
+    badge.innerHTML=`<i class="ti ti-brand-slack"></i> Borrador para el workflow ⚡ del canal ${docType==='sol'?'#hola-producto':'#soporte-interno'}`;
+    card.appendChild(badge);
+  }
+  let i=0;
+  while(i<fields.length){
+    const f=fields[i];
+    if(f.col==='left'&&fields[i+1]&&fields[i+1].col==='right'){
+      const row=document.createElement('div');row.className='form-two-col';
+      row.appendChild(makeField(f));row.appendChild(makeField(fields[i+1]));
+      card.appendChild(row);i+=2;
+    } else {card.appendChild(makeField(f));i++;}
+  }
+}
+
+function makeField(f){
+  const div=document.createElement('div');div.className='field-group';
+  const req=f.req?' <span class="req">*</span>':'';
+  div.innerHTML=`<label for="f_${f.id}">${f.label}${req}</label>`;
+  if(f.type==='textarea'){
+    div.innerHTML+=`<textarea id="f_${f.id}" placeholder="${f.hint||''}"></textarea>`;
+  } else if(f.type==='select'){
+    const opts=(f.opts||[]).map(o=>`<option value="${o}">${o}</option>`).join('');
+    div.innerHTML+=`<select id="f_${f.id}">${opts}</select>`;
+  } else if(f.type==='checkboxes'){
+    const cg=document.createElement('div');cg.className='checkbox-group';cg.id=`f_${f.id}`;
+    (f.opts||[]).forEach(o=>{
+      const lbl=document.createElement('label');lbl.className='checkbox-item';
+      lbl.innerHTML=`<input type="checkbox" value="${o}"> ${o}`;
+      cg.appendChild(lbl);
+    });
+    div.appendChild(cg);
+  } else {
+    div.innerHTML+=`<input type="text" id="f_${f.id}" placeholder="${f.hint||''}">`;
+  }
+  if(f.hint&&f.type!=='select'&&f.type!=='checkboxes') div.innerHTML+=`<div class="hint">${f.hint}</div>`;
+  return div;
+}
+
+function collectFormData(){
+  const fields=docType==='sol'?SOL_FORMS[subType]:TICKET_FORMS[subType];
+  const data={};
+  fields.forEach(f=>{
+    if(f.type==='checkboxes'){
+      const checked=[...document.querySelectorAll(`#f_${f.id} input:checked`)].map(c=>c.value);
+      data[f.id]=checked.join(', ');
+    } else {
+      const el=document.getElementById('f_'+f.id);
+      if(el)data[f.id]=el.value.trim();
+    }
+  });
+  return data;
+}
+
+function buildSystemPrompt(){
+  const isSlack=dest==='slack';
+  return `Eres un asistente especializado en redactar SOLs (Solicitudes de Tecnología) y Tickets de Soporte para SimpliRoute.
+
+Tu tarea es generar borradores listos para usar${isSlack?' en el workflow de Slack correspondiente':' en Salesforce'}.
+
+REGLAS DE FORMATO:
+- Texto plano únicamente. Sin tablas, sin markdown, sin asteriscos, sin bullets con guiones.
+- Primera persona, tono formal y ejecutivo ("Se solicita...", "El objetivo es...", "Se reporta...").
+- Español, con términos técnicos en inglés cuando corresponda (endpoint, payload, token, webhook).
+- Si hay campos opcionales sin datos, omitirlos del output.
+- Incluir contexto de urgencia o impacto si el usuario lo mencionó.
+${isSlack?'- El borrador debe estar formateado campo por campo para copiar directamente en el formulario del workflow ⚡ de Slack.\n- Al finalizar indicar al usuario que debe abrir el workflow manualmente con el ícono ⚡ del canal.':'- El foco de las SOLs es describir el problema o necesidad; el equipo de producto determina la solución.'}
+
+ESTRUCTURA: Cada campo en mayúsculas seguido de dos puntos y salto de línea, luego el contenido.
+
+Al final agregar línea en blanco y preguntar: "¿Quieres ajustar algo del borrador antes de copiarlo?"`;
+}
+
+function buildUserMessage(){
+  const names={prototipo:'SOL tipo Prototipo',desarrollo:'SOL tipo Desarrollo',macro:'SOL tipo Macro',reporte:'SOL tipo Reporte',soporte_prototipado:'SOL tipo Soporte Prototipado',problema:'Ticket — Problema o error',solicitud:'Ticket — Solicitud / Middleware / TI',tarea:'Ticket — Tarea',hola_producto:'SOL para Slack #hola-producto',soporte_interno:'Ticket para Slack #soporte-interno'};
+  let msg=`Tipo de documento: ${names[subType]}\n\nDatos proporcionados:\n`;
+  const fields=docType==='sol'?SOL_FORMS[subType]:TICKET_FORMS[subType];
+  const labels={};fields.forEach(f=>{labels[f.id]=f.label;});
+  Object.entries(formData).forEach(([k,v])=>{if(v&&v!=='—')msg+=`${labels[k]||k}: ${v}\n`;});
+  msg+='\nRedacta el borrador completo listo para usar.';
+  return msg;
+}
+
+function startGenerate(){
+  formData=collectFormData();
+  const fields=docType==='sol'?SOL_FORMS[subType]:TICKET_FORMS[subType];
+  const missing=fields.filter(f=>f.req&&(!formData[f.id]||formData[f.id]==='—'||formData[f.id]===''));
+  if(missing.length>0){alert('Por favor completa los campos obligatorios:\n'+missing.map(f=>f.label).join('\n'));return;}
+  showStep('step-chat');messages=[];
+  document.getElementById('chat-messages').innerHTML='';
+  messages.push({role:'user',content:buildUserMessage()});
+  callAPI();
+}
+
+async function callAPI(){
+  generating=true;
+  const chatDiv=document.getElementById('chat-messages');
+  const inputArea=document.getElementById('chat-input-area');
+  const sendBtn=document.getElementById('send-btn');
+  if(sendBtn)sendBtn.disabled=true;
+  const typing=document.createElement('div');typing.className='typing';
+  typing.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  chatDiv.appendChild(typing);chatDiv.scrollTop=chatDiv.scrollHeight;
+  try{
+    const resp=await fetch('/api/chat',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system:buildSystemPrompt(),messages})
+    });
+    const data=await resp.json();typing.remove();
+    if(data.error){showError(chatDiv,data.error.message||JSON.stringify(data.error));generating=false;return;}
+    const text=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'No se pudo generar el borrador.';
+    messages.push({role:'assistant',content:text});
+    const parts=text.split('¿Quieres ajustar algo');
+    const draft=parts[0].trim();
+    const question=parts.length>1?'¿Quieres ajustar algo'+parts[1]:null;
+    const msgDiv=document.createElement('div');msgDiv.className='msg ai';
+    const lbl=document.createElement('span');lbl.className='msg-label';lbl.textContent='Borrador generado';
+    msgDiv.appendChild(lbl);
+    const outputBox=document.createElement('div');outputBox.className='output-box';outputBox.textContent=draft;
+    msgDiv.appendChild(outputBox);
+    // Slack hint
+    if(dest==='slack'){
+      const hint=document.createElement('div');hint.className='slack-hint';
+      const ch=docType==='sol'?'#hola-producto':'#soporte-interno';
+      hint.innerHTML=`<i class="ti ti-brand-slack"></i> Copia cada campo en el workflow ⚡ del canal ${ch} en Slack. Ábrelo manualmente desde el canal.`;
+      msgDiv.appendChild(hint);
+    }
+    const actionRow=document.createElement('div');actionRow.className='action-row';
+    const copyBtn=document.createElement('button');copyBtn.className='copy-btn';
+    copyBtn.innerHTML='<i class="ti ti-copy"></i> Copiar borrador';
+    copyBtn.onclick=()=>{navigator.clipboard.writeText(draft).then(()=>{copyBtn.className='copy-btn success';copyBtn.innerHTML='<i class="ti ti-circle-check"></i> ¡Copiado!';setTimeout(()=>{copyBtn.className='copy-btn';copyBtn.innerHTML='<i class="ti ti-copy"></i> Copiar borrador';},2500);});};
+    const newBtn=document.createElement('button');newBtn.className='new-btn';
+    newBtn.innerHTML='<i class="ti ti-plus"></i> Nuevo documento';newBtn.onclick=resetAll;
+    actionRow.appendChild(copyBtn);actionRow.appendChild(newBtn);msgDiv.appendChild(actionRow);
+    if(question){const qDiv=document.createElement('div');qDiv.className='review-question';qDiv.textContent='¿Quieres ajustar algo'+parts[1];msgDiv.appendChild(qDiv);}
+    chatDiv.appendChild(msgDiv);
+    inputArea.style.display='flex';if(sendBtn)sendBtn.disabled=false;
+  }catch(e){typing.remove();showError(chatDiv,'Error de conexión con el servidor.');}
+  generating=false;chatDiv.scrollTop=chatDiv.scrollHeight;
+}
+
+function showError(container,msg){
+  const d=document.createElement('div');d.className='msg ai';d.style.borderColor='var(--red)';
+  d.innerHTML=`<i class="ti ti-alert-circle" style="color:var(--red)"></i> <strong>Error:</strong> ${msg}`;
+  container.appendChild(d);
+}
+async function sendChat(){
+  if(generating)return;
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim();if(!text)return;
+  input.value='';
+  const chatDiv=document.getElementById('chat-messages');
+  const userDiv=document.createElement('div');userDiv.className='msg user';userDiv.textContent=text;
+  chatDiv.appendChild(userDiv);messages.push({role:'user',content:text});await callAPI();
+}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function goBack(to){
+  if(to==='type'){showStep('step-type');docType='';dest='';subType='';document.querySelectorAll('.type-btn,.sub-btn').forEach(b=>b.classList.remove('selected'));}
+  else if(to==='dest'){showStep('step-dest');dest='';subType='';document.querySelectorAll('#step-dest .type-btn').forEach(b=>b.classList.remove('selected'));}
+  else if(to==='subtype'){showStep('step-subtype');subType='';document.querySelectorAll('.sub-btn').forEach(b=>b.classList.remove('selected'));}
+  else if(to==='form'){showStep('step-form');messages=[];document.getElementById('chat-messages').innerHTML='';document.getElementById('chat-input-area').style.display='none';}
+}
+function resetAll(){
+  docType='';dest='';subType='';formData={};messages=[];
+  document.querySelectorAll('.type-btn,.sub-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('chat-messages').innerHTML='';
+  document.getElementById('chat-input-area').style.display='none';
+  showStep('step-type');
+}
+</script>
+</body>
+</html>
